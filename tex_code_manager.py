@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 
-# TODO: put the include_chapters script into some subdirectory, it's stupid to 
-# have that in top level
 # TODO: think about making chapter_order some sort of standard file type, 
 # probably yaml (or json if that's necessary for some reason, but yaml should be 
 # fine, no outdated tcl versions involved here) -> another benefit that would 
@@ -12,6 +10,7 @@ import os
 from operator import itemgetter
 
 import code_manager
+import m_code_manager.util.files as files
 
 LANG_IDENTIFIERS = ["latex"]
 
@@ -36,15 +35,13 @@ class TexCodeManager(code_manager.CodeManager):
         # extensive) comment in python_code_manager
         super().__init__("tex")
 
-    def _command_project(self, name="document", tex_engine="pdflatex",
-                         dir_texmk_out="texmk_out", **kwargs):
+    def _command_project(self, project="", name="document", 
+                         tex_engine="pdflatex", **kwargs):
         '''
-        If app_name is not specified, it is assumed to be the project directory name
-        empty - don't generate a hello world main.cpp
-
-        :name: name for the created pdf document (<name>.pdf)
-        :tex_engine: any valid latexmk tex engine. Is passed to latexmk in the 
-        makefile via -<tex_engine>
+        :project: name for the created project
+        :name: currently unused, see tex_engine
+        :tex_engine: currently unused, after an update is supposed as the entry 
+        to a field in a project config
         '''
         # TODO: git option
 
@@ -52,35 +49,19 @@ class TexCodeManager(code_manager.CodeManager):
         # PROJECT DIRECTORIES
         ##############################
 
+        if project:
+            files.create_dir(project)
+            os.chdir(project)
+
         project_dirs = itemgetter(
                 'DIR_SRC', 'DIR_UTIL',
                 )(self.PLACEHOLDERS)
         for directory in project_dirs:
-            # comments: hdl_code_manager.py
-            try:
-                os.mkdir(directory)
-            except FileExistsError:
-                pass
+            files.create_dir(directory)
 
         ##############################
         # TEMPLATES
         ##############################
-
-        # MAKEFILE
-        s_target_file = "makefile"
-        if self._check_target_edit_allowed(s_target_file):
-            template_out = self._load_template("makefile", dict_placeholders={
-                        "TEX_ENGINE": tex_engine,
-                        "DOC_NAME": name,
-                        "DIR_TEXMK_OUT": dir_texmk_out,
-                        })
-            self._write_template(template_out, s_target_file)
-
-        # INCLUDE_CHAPTERS
-        s_target_file = self.PLACEHOLDERS["SCRIPT_INCLUDE_CHAPTERS"]
-        if self._check_target_edit_allowed(s_target_file):
-            template_out = self._load_template("include_chapters")
-            self._write_template(template_out, s_target_file)
 
         # MAIN
         s_target_file = self.PLACEHOLDERS["FILE_TEX_MAIN_BASE"] + ".tex"
@@ -124,10 +105,7 @@ class TexCodeManager(code_manager.CodeManager):
         # EXAMPLE CHAPTER
         s_dir_example_chapter = os.path.join(
                 self.PLACEHOLDERS["DIR_SRC"], self.PLACEHOLDERS["EXAMPLE_CHAPTER"])
-        try:
-            os.mkdir(s_dir_example_chapter)
-        except FileExistsError:
-            pass
+        files.create_dir(s_dir_example_chapter)
 
         s_target_file = os.path.join(s_dir_example_chapter,
                                      self.PLACEHOLDERS["EXAMPLE_CHAPTER"] + "_section.tex")
